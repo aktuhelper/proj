@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+
 // Message Schema
 const messageSchema = new mongoose.Schema({
     text: { type: String, default: "" },
@@ -19,5 +20,4 @@ const conversationSchema = new mongoose.Schema({
 
 const ConversationModel = mongoose.model("Conversation", conversationSchema);
 
-// ✅ Correct export
 export { MessageModel, ConversationModel };

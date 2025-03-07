@@ -1,123 +1,140 @@
 import React, { useEffect, useState, useRef, useContext } from 'react';
-import { Link, useParams, useLocation } from 'react-router-dom';
-import { FaAngleLeft, FaPlus, FaUserPlus, FaTrash } from "react-icons/fa";
-import { HiDotsVertical } from "react-icons/hi";
+import { Link } from 'react-router-dom';
+import { FaAngleLeft, FaPlus, FaTrash } from "react-icons/fa";
 import { IoMdSend } from "react-icons/io";
 import Avatar from './Avatar';
 import moment from 'moment';
 import { AppContent } from '../context/AppContext';
 
 const RandomChatPage = () => {
-  const { userId } = useParams();
-  const location = useLocation();
-  const { recipient } = location.state || {}; // In case the recipient is passed from another component
-  const { socket, userdata, randomChatPartner } = useContext(AppContent);
-
+  const { userdata, socket, onlineUsersCount } = useContext(AppContent);
   const [message, setMessage] = useState({ text: "", imageUrl: "" });
   const [allMessages, setAllMessages] = useState([]);
-  const [recipientStatus, setRecipientStatus] = useState("Offline");
+  const [recipientStatus, setRecipientStatus] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
+  const [randomUser, setRandomUser] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
   const currentMessage = useRef(null);
 
-  // Ensure the randomChatPartner is available or use recipient from state
-  const currentPartner = randomChatPartner || recipient;
-
   useEffect(() => {
-    // Debug logs for randomChatPartner and recipient
-    console.log("Random Chat Partner:", randomChatPartner);  // Debug log
-    console.log("Recipient from location:", recipient);  // Debug log
+    console.log("Current random chat partner:", randomUser);
 
-    if (!currentPartner) {
-      console.error('No random chat partner or recipient found!');
-      return; // If no partner is found, exit early
+    if (randomUser && randomUser.name) {
+      alert(`You are connected with ${randomUser?.name}`);
     }
 
-    // Scroll to the latest message
-    if (currentMessage.current) {
-      currentMessage.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
-
-    // Listen for incoming messages
     if (socket) {
-      socket.on("newMessage", (newMessage) => {
-        if (
-          newMessage.receiverId === userdata?._id || 
-          newMessage.senderId === userdata?._id
-        ) {
-          setAllMessages((prevMessages) => [...prevMessages, newMessage]);
+      // Listen for incoming messages
+      socket.on("new-message", (chatRoomId, newMessages) => {
+        if (newMessages.some(msg => msg.receiverId === userdata?._id || msg.senderId === userdata?._id)) {
+          setAllMessages(newMessages);
         }
       });
 
-      // Listen for status updates of the random chat partner
+      // Listen for status updates
       socket.on("statusUpdate", (status) => {
-        if (currentPartner?._id === status.userId) {
+        if (randomUser?._id === status.userId) {
           setRecipientStatus(status.status);
         }
+      });
+
+      // Listen for when a random chat starts
+      socket.on("chat-started", (chatRoomId, partner) => {
+        console.log("Chat started with user:", partner);
+        setRandomUser(partner);
+        setChatStarted(true);
+        setRecipientStatus("Online");
+      });
+
+      // Listen for when the chat ends
+      socket.on("chat-ended", () => {
+        console.log("Chat ended");
+        setChatStarted(false);
+        setRecipientStatus("Offline");
+        setRandomUser(null);
+      });
+
+      // Listen for typing status
+      socket.on("typing", (isTyping) => {
+        setIsTyping(isTyping);
       });
     }
 
     return () => {
       if (socket) {
-        socket.off("newMessage");
+        socket.off("new-message");
         socket.off("statusUpdate");
+        socket.off("chat-started");
+        socket.off("chat-ended");
+        socket.off("typing");
       }
     };
-  }, [socket, userdata, currentPartner]);
+  }, [socket, userdata, randomUser]);
 
   const handleStartChat = () => {
-    if (!currentPartner) {
-      console.error('No random chat partner or recipient available to start a chat!');
-      alert('Please try again, no partner found.');
-      return;
-    }
-
-    console.log("Current partner:", currentPartner);  // Debug log
-
     setIsSearching(true);
     setTimeout(() => {
       setIsSearching(false);
       setChatStarted(true);
-    }, 2000); // Simulate the time taken to start the chat
+    }, 2000);
+
+    if (socket) {
+      console.log("Emitting start-chat event with user ID:", userdata._id);
+      socket.emit("start-chat", userdata._id);
+    }
   };
 
   const handleEndChat = () => {
-    setChatStarted(false); // End chat
+    setChatStarted(false);
+    if (socket) {
+      socket.emit("end-chat", userdata._id);
+    }
   };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatStarted) {
       console.log("Chat not started yet!");
-      return; // Prevent sending message if chat hasn't started
+      return;
     }
 
     if (message.text || message.imageUrl) {
-      if (!currentPartner) {
-        console.error('No random chat partner found!');
-        return; // Prevent sending message if no partner exists
+      if (!randomUser || !randomUser._id) {
+        console.error('Random user or receiverId is undefined!');
+        return;
       }
 
       const newMessage = {
         senderId: userdata?._id,
-        receiverId: currentPartner._id, // Send message to the current chat partner
+        receiverId: randomUser._id,
         text: message.text,
         imageUrl: message.imageUrl,
         createdAt: new Date().toISOString(),
       };
 
+      // Create a unique chatRoomId (e.g., based on both userIds)
+      const chatRoomId = [userdata._id, randomUser._id].sort().join('-');  // Unique chat room ID based on user IDs
+
+      // Emitting the message to the chatRoomId
       if (socket) {
-        socket.emit("randomChatMessage", newMessage); // Emit the new message to the server
+        console.log("Emitting message:", newMessage);
+        socket.emit("send-message", chatRoomId, newMessage);  // Sending to the correct room
       }
 
       setAllMessages((prevMessages) => [...prevMessages, newMessage]);
-      setMessage({ text: "", imageUrl: "" }); // Clear the input fields after sending
+      setMessage({ text: "", imageUrl: "" });
     }
   };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size is too large. Please upload a file under 5MB.');
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setMessage((prev) => ({ ...prev, imageUrl: reader.result }));
@@ -129,7 +146,7 @@ const RandomChatPage = () => {
   };
 
   const handleClearChat = () => {
-    setAllMessages([]); // Clear the chat history
+    setAllMessages([]);
   };
 
   return (
@@ -139,23 +156,23 @@ const RandomChatPage = () => {
           <Link to="/" className="lg:hidden text-white hover:text-[#E74C3C] transition-colors duration-300">
             <FaAngleLeft size={25} />
           </Link>
-          <Avatar width={50} height={50} imageUrl={currentPartner?.profile_pic} />
-          <div>
-            <h3 className="font-semibold text-lg md:text-base sm:text-sm">{currentPartner?.name || "User"}</h3>
-            <p className={`text-sm ${recipientStatus === "Online" ? "text-green-400" : "text-red-500"}`}>
-              {recipientStatus}
-            </p>
+          <Avatar width={50} height={50} imageUrl={randomUser?.profile_pic || userdata?.profile_pic} />
+          <div className="flex items-center">
+            <div className="flex flex-col justify-center">
+              <h3 className="font-semibold text-lg md:text-base sm:text-sm">{randomUser?.name || userdata?.name}</h3>
+              <p className={`text-sm ${recipientStatus === "Online" ? "text-green-400" : "text-red-500"}`}>
+                {recipientStatus}
+              </p>
+            </div>
+            <div className="flex items-center justify-center w-6 h-6 bg-[#36ac32] text-white rounded-full text-xs font-semibold ml-2">
+              {onlineUsersCount}
+            </div>
+            <span className="text-green-400 text-sm ml-1">Online</span>
           </div>
         </div>
-        <div className="flex items-center gap-6">
-          <button className="text-gray-300 hover:text-[#E74C3C] transition-colors duration-300">
-            <FaUserPlus size={23} />
-          </button>
+        <div className="flex items-center gap-4">
           <button onClick={handleClearChat} className="text-gray-300 hover:text-[#b95246] transition-colors duration-300">
             <FaTrash size={20} />
-          </button>
-          <button className="text-gray-300 hover:text-gray-100 transition-colors duration-300">
-            <HiDotsVertical size={22} />
           </button>
         </div>
       </header>
@@ -180,6 +197,7 @@ const RandomChatPage = () => {
               <p className="text-xs text-gray-300 text-right">{moment(msg.createdAt).format('hh:mm A')}</p>
             </div>
           ))}
+          {isTyping && <p className="text-sm text-gray-300">User is typing...</p>}
         </div>
       </section>
 
@@ -197,7 +215,10 @@ const RandomChatPage = () => {
           <input
             type="text"
             value={message.text}
-            onChange={(e) => setMessage({ ...message, text: e.target.value })}
+            onChange={(e) => {
+              setMessage({ ...message, text: e.target.value });
+              socket.emit("typing", e.target.value.length > 0); 
+            }}
             placeholder="Type a message..."
             className="flex-1 p-2 sm:p-3 pl-10 sm:pl-12 rounded-full bg-[#2A2A2A] text-white outline-none border border-gray-600 w-full"
           />

@@ -5,37 +5,33 @@ import { io } from "socket.io-client";
 
 export const AppContent = createContext();
 
-export const AppContextProvider = ({ children }) => {
+export const AppContextProvider = (props) => {
   axios.defaults.withCredentials = true;
   const backendUrl = import.meta.env.VITE_BACKEND_URL;
 
   const [socket, setSocket] = useState(null);
   const [isLoggedin, setIsLoggedin] = useState(false);
   const [userdata, setUserdata] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [onlineUsersCount, setOnlineUsersCount] = useState(0);
+  const [chatUser, setChatUser] = useState(null);
   const [randomChatPartner, setRandomChatPartner] = useState(null);
+  const [randomChatRoom, setRandomChatRoom] = useState(null);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const { data } = await axios.get(`${backendUrl}/api/auth/isauth`);
-        if (data.success) {
-          setIsLoggedin(true);
-          getUserData(); // Call getUserData separately
-        }
-      } catch (error) {
-        toast.error(error.response?.data?.message || "Authentication failed");
+  const getAuthState = async () => {
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/auth/isauth`);
+      if (data.success) {
+        setIsLoggedin(true);
+        await getUserData();
+      } else {
+        setIsLoggedin(false);
+        setUserdata(null);
       }
-    };
-
-    initializeAuth();
-
-    return () => {
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-      }
-    };
-  }, []);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Authentication failed");
+    }
+  };
 
   const getUserData = async () => {
     try {
@@ -47,52 +43,61 @@ export const AppContextProvider = ({ children }) => {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to fetch user data");
+      toast.error(error.response?.data?.message || "Something went wrong");
     }
   };
 
   const setupSocketConnection = (userId) => {
-    if (!userId) return;
+    if (!userId || socket) return;
 
     const socketConnection = io(backendUrl, { query: { userId } });
 
     socketConnection.on("connect", () => {
-      console.log("Socket connected:", socketConnection.id);
+      socketConnection.emit("user-online", userId);
     });
 
     socketConnection.on("disconnect", () => {
-      console.log("Socket disconnected");
+      socketConnection.emit("user-offline", userId);
     });
 
-    socketConnection.on("onlineUsers", (onlineUsers) => {
-      console.log("Online users:", onlineUsers);
+    socketConnection.on("onlineUsers", (onlineUsersList) => {
+      setOnlineUsers(new Set(onlineUsersList));
+      setOnlineUsersCount(onlineUsersList.length);
     });
 
-    socketConnection.on("randomChatStarted", (data) => {
-      console.log("Random chat started with partner:", data.partnerId); // Debug log
-      setRandomChatPartner(data.partnerId); // Set the random chat partner
+    socketConnection.on("message-user", (payload) => {
+      setChatUser(payload);
     });
 
-    socketConnection.on("randomChatMessage", (message) => {
-      console.log("Message received in random chat:", message);
+    socketConnection.on("random-chat-start", ({ chatRoomId, partner }) => {
+      setRandomChatRoom(chatRoomId);
+      setRandomChatPartner(partner);
     });
 
-    socketConnection.on("error", (error) => {
-      console.error("Socket error:", error);
-      toast.error("Error with the socket connection.");
+    socketConnection.on("random-chat-ended", () => {
+      setRandomChatRoom(null);
+      setRandomChatPartner(null);
     });
 
     setSocket(socketConnection);
   };
 
-  const startRandomChat = () => {
-    if (!socket || !userdata) {
-      toast.error("Socket or User data not available.");
-      return;
-    }
+  useEffect(() => {
+    getAuthState();
 
-    socket.emit("startRandomChat", userdata._id); // Trigger the random chat request
-  };
+    return () => {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (userdata) {
+      setupSocketConnection(userdata._id);
+    }
+  }, [userdata]);
 
   return (
     <AppContent.Provider
@@ -102,13 +107,16 @@ export const AppContextProvider = ({ children }) => {
         setIsLoggedin,
         userdata,
         setUserdata,
-        randomChatPartner,
-        startRandomChat, // Function to start random chat
         getUserData,
         socket,
+        onlineUsers,
+        onlineUsersCount,
+        chatUser,
+        randomChatPartner,
+        randomChatRoom,
       }}
     >
-      {children}
+      {props.children}
     </AppContent.Provider>
   );
 };

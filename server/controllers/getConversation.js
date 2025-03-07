@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import { ConversationModel } from '../database/conversationModel.js';  // ✅ Correct Import
+import { ConversationModel } from "../database/conversationModel.js"; // ✅ Correct Import
 
 const getConversation = async (currentUserId) => {
     if (!currentUserId || !mongoose.Types.ObjectId.isValid(currentUserId)) {
@@ -10,7 +10,7 @@ const getConversation = async (currentUserId) => {
     try {
         console.log("🔍 Fetching conversations for user:", currentUserId);
 
-        const currentUserConversation = await ConversationModel.find({
+        const conversations = await ConversationModel.find({
             "$or": [
                 { sender: currentUserId },
                 { receiver: currentUserId }
@@ -18,45 +18,32 @@ const getConversation = async (currentUserId) => {
         })
         .sort({ updatedAt: -1 })
         .populate({
-            path: 'messages',
-            select: 'text seen msgByUserId createdAt',  // ✅ Only select needed fields
+            path: "messages",
+            select: "text seen msgByUserId createdAt",
         })
-        .populate('sender', 'name email profile_pic')  // ✅ Only fetch necessary sender details
-        .populate('receiver', 'name email profile_pic'); // ✅ Only fetch necessary receiver details
+        .populate("sender", "name email profile_pic")
+        .populate("receiver", "name email profile_pic")
+        .lean();  // ✅ Returns plain JavaScript objects for better performance
 
-        if (!currentUserConversation || currentUserConversation.length === 0) {
+        if (!conversations || conversations.length === 0) {
             console.warn("⚠️ No conversations found for user:", currentUserId);
             return [];
         }
 
-        const conversations = currentUserConversation.map((conv) => {
-            if (!conv.messages || conv.messages.length === 0) {
-                return {
-                    _id: conv._id,
-                    sender: conv.sender,
-                    receiver: conv.receiver,
-                    unseenMsg: 0,
-                    lastMsg: null,
-                };
-            }
-
-            const countUnseenMsg = conv.messages.reduce((prev, curr) => {
-                return curr.msgByUserId.toString() !== currentUserId && !curr.seen ? prev + 1 : prev;
-            }, 0);
-
-            const lastMsg = conv.messages[conv.messages.length - 1];
+        return conversations.map((conv) => {
+            const unseenMsgCount = conv.messages?.reduce((count, msg) => {
+                return msg.msgByUserId.toString() !== currentUserId && !msg.seen ? count + 1 : count;
+            }, 0) || 0;  // ✅ Prevents undefined issues
 
             return {
                 _id: conv._id,
                 sender: conv.sender,
                 receiver: conv.receiver,
-                unseenMsg: countUnseenMsg,
-                lastMsg,
+                unseenMsg: unseenMsgCount,
+                lastMsg: conv.messages?.[conv.messages.length - 1] || null, // ✅ Prevents undefined errors
             };
         });
 
-        console.log("✅ Conversations fetched successfully");
-        return conversations;
     } catch (error) {
         console.error("❌ Error fetching conversations:", error.message);
         return [];

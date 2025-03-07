@@ -10,17 +10,16 @@ import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import RandomChatPage from './components/randomChatPage';
 
-
 const App = () => {
   return (
     <div>
       <ToastContainer />
       <Routes>
         <Route path='/' element={<Home />}>
-        <Route path=":userId" element={<MessagePage />} />
+          <Route path=":userId" element={<MessagePage />} />
         </Route>
         <Route path='/login' element={<Login />} />
-        <Route path='/randomChat' element={<RandomChatPage />} />
+        <Route path='/randomChat' element={<RandomChatPage />} /> {/* Keep this one */}
         <Route path='/email-verify' element={<VerifyEmail />} />
         <Route path='/reset-password' element={<ResetPassword />} />
       </Routes>
