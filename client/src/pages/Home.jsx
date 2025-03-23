@@ -68,11 +68,12 @@ const Home = () => {
         </p>
 
         <button 
-          onClick={() => navigate("/randomchat")} 
-          className="mt-4 px-6 py-3 text-white font-bold rounded-lg bg-red-500 hover:bg-red-600 transition duration-300 shadow-lg"
-        >
-          Start Chat
-        </button>
+  onClick={() => window.location.href = "https://chattsphere.vercel.app/chat"} 
+  className="mt-4 px-6 py-3 text-white font-bold rounded-lg bg-red-500 hover:bg-red-600 transition duration-300 shadow-lg"
+>
+  Start Chat
+</button>
+
       </div>
     </div>
   );
