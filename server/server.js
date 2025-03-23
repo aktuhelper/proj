@@ -25,7 +25,7 @@ const __dirname= path.resolve();
 connectDB();
 
 // Allowed origins for CORS
-const allowedOrigins = ['http://localhost:5173']; // Frontend URL
+const allowedOrigins = ['https://chatsphere-hzox.onrender.com']; // Frontend URL
 
 app.use(express.json());
 app.use(cookieParser());
