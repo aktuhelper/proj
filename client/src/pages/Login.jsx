@@ -84,8 +84,6 @@ const Login = () => {
 
   return (
     <div className='flex items-center justify-center min-h-screen px-6 sm:px-0'>
-      <img onClick={() => navigate('/')} src={assets.chat_logo} alt="" className='absolute left-5 sm:left-20 top-5 w-25 sm:w-20 cursor-pointer'/>
-
       <div className='bg-[#1A1A1A] p-10 rounded-lg shadow-lg w-full sm:w-96 text-white'>
         <h2 className='text-3xl font-semibold text-center m-3'>{state === 'Sign Up' ? 'Create Account' : 'Login'}</h2>
         <p className='text-center text-sm mb-6'>{state === 'Sign Up' ? 'Create your account' : 'Login to Your account'}</p>
