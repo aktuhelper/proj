@@ -22,3 +22,39 @@ body{
     animation: pendulum 1.5s infinite ease-in-out;
     transform-origin: top center;
   }
+
+
+/* Popup animation */
+@keyframes popup-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popup-out {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+}
+
+.popup-message {
+  animation: popup-in 0.5s ease-in-out forwards;
+}
+
+.popup-message.fade-out {
+  animation: popup-out 0.5s ease-in-out forwards;
+}
+
+
+
+

@@ -5,6 +5,7 @@ import { IoMdSend } from "react-icons/io";
 import Avatar from './Avatar';
 import moment from 'moment';
 import { AppContent } from '../context/AppContext';
+import '../App.css';
 
 const RandomChatPage = () => {
   const { userdata, socket, onlineUsersCount } = useContext(AppContent);
@@ -15,6 +16,8 @@ const RandomChatPage = () => {
   const [chatStarted, setChatStarted] = useState(false);
   const [randomUser, setRandomUser] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
+  const [popupMessage, setPopupMessage] = useState(""); // New state for popup message
+  const [popupVisible, setPopupVisible] = useState(false); // To control visibility of the popup
   const currentMessage = useRef(null);
 
   useEffect(() => {
@@ -47,12 +50,21 @@ const RandomChatPage = () => {
         setRecipientStatus("Online");
       });
 
-      // Listen for when the chat ends
+      // Listen for when a chat ends
       socket.on("chat-ended", () => {
         console.log("Chat ended");
         setChatStarted(false);
         setRecipientStatus("Offline");
         setRandomUser(null);
+
+        // Set the popup message and display it
+        setPopupMessage(`${randomUser?.username} left the chat`);
+        setPopupVisible(true);
+
+        // Hide the popup after 3 seconds
+        setTimeout(() => {
+          setPopupVisible(false);
+        }, 3000);
       });
 
       // Listen for typing status
@@ -113,13 +125,11 @@ const RandomChatPage = () => {
         createdAt: new Date().toISOString(),
       };
 
-      // Create a unique chatRoomId (e.g., based on both userIds)
-      const chatRoomId = [userdata._id, randomUser._id].sort().join('-');  // Unique chat room ID based on user IDs
+      const chatRoomId = [userdata._id, randomUser._id].sort().join('-');
 
-      // Emitting the message to the chatRoomId
       if (socket) {
         console.log("Emitting message:", newMessage);
-        socket.emit("send-message", chatRoomId, newMessage);  // Sending to the correct room
+        socket.emit("send-message", chatRoomId, newMessage);
       }
 
       setAllMessages((prevMessages) => [...prevMessages, newMessage]);
@@ -156,13 +166,10 @@ const RandomChatPage = () => {
           <Link to="/" className="lg:hidden text-white hover:text-[#E74C3C] transition-colors duration-300">
             <FaAngleLeft size={25} />
           </Link>
-          <Avatar width={50} height={50} imageUrl={randomUser?.profile_pic || userdata?.profile_pic} />
+          <Avatar width={50} height={50} imageUrl={userdata?.profile_pic} />
           <div className="flex items-center">
             <div className="flex flex-col justify-center">
-              <h3 className="font-semibold text-lg md:text-base sm:text-sm">{randomUser?.name || userdata?.name}</h3>
-              <p className={`text-sm ${recipientStatus === "Online" ? "text-green-400" : "text-red-500"}`}>
-                {recipientStatus}
-              </p>
+              <h3 className="font-semibold text-lg md:text-base sm:text-sm">{userdata?.name}</h3>
             </div>
             <div className="flex items-center justify-center w-6 h-6 bg-[#36ac32] text-white rounded-full text-xs font-semibold ml-2">
               {onlineUsersCount}
@@ -177,6 +184,34 @@ const RandomChatPage = () => {
         </div>
       </header>
 
+      {/* Popup for when the user leaves */}
+      {popupVisible && (
+        <div className="popup-message animate-popup text-white bg-[#333] p-4 text-center fixed top-16 left-1/2 transform -translate-x-1/2 rounded-md shadow-lg">
+          {popupMessage}
+        </div>
+      )}
+
+      {randomUser && chatStarted && (
+        <div className="flex flex-col items-center justify-center p-4 text-center">
+          <div className="relative w-20 h-20">
+            <Avatar
+              width={80}
+              height={80}
+              imageUrl={randomUser?.profile_pic}
+              className="rounded-full border-4 border-[#f2dfdf]"
+            />
+            {recipientStatus === "Online" && (
+              <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+            )}
+          </div>
+          <p className="text-md font-light mt-2">You are connected with {randomUser?.username}, say hi!</p>
+          <div className="mt-4">
+            <span className="animate-wave text-4xl" role="img" aria-label="Hand wave emoji">👋</span>
+          </div>
+        </div>
+      )}
+
+      {/* Other sections of the chat */}
       <section className="flex-1 px-4 py-2 overflow-hidden">
         <div className="flex flex-col gap-2 text-sm md:text-sm sm:text-xs" ref={currentMessage}>
           {allMessages.map((msg, index) => (
@@ -202,10 +237,17 @@ const RandomChatPage = () => {
       </section>
 
       <section className="h-16 bg-[#1A1A1A] flex items-center px-2 sm:px-4 gap-2 shadow-inner w-full">
-        <button 
-          onClick={chatStarted ? handleEndChat : handleStartChat} 
-          className="w-20 sm:w-24 md:w-32 h-10 rounded-full bg-[#E74C3C] text-white flex-shrink-0 flex items-center justify-center font-semibold transition-colors duration-300 hover:bg-[#C0392B]">
-          {isSearching ? <div className="loader border-t-2 border-white border-solid rounded-full w-4 h-4 animate-spin"></div> : chatStarted ? "End Chat" : "Start Chat"}
+        <button
+          onClick={chatStarted ? handleEndChat : handleStartChat}
+          className="w-20 sm:w-24 md:w-32 h-10 rounded-full bg-[#E74C3C] text-white flex-shrink-0 flex items-center justify-center font-semibold transition-colors duration-300 hover:bg-[#C0392B]"
+        >
+          {isSearching ? (
+            <div className="loader border-t-2 border-white border-solid rounded-full w-4 h-4 animate-spin"></div>
+          ) : chatStarted ? (
+            "End Chat"
+          ) : (
+            "Start Chat"
+          )}
         </button>
         <form className="flex-1 flex items-center gap-1 relative w-full" onSubmit={handleSendMessage}>
           <label className="absolute left-3 top-1/2 transform -translate-y-1/2 cursor-pointer">
@@ -217,12 +259,15 @@ const RandomChatPage = () => {
             value={message.text}
             onChange={(e) => {
               setMessage({ ...message, text: e.target.value });
-              socket.emit("typing", e.target.value.length > 0); 
+              socket.emit("typing", e.target.value.length > 0);
             }}
             placeholder="Type a message..."
             className="flex-1 p-2 sm:p-3 pl-10 sm:pl-12 rounded-full bg-[#2A2A2A] text-white outline-none border border-gray-600 w-full"
           />
-          <button type="submit" className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center rounded-full bg-[#E74C3C] hover:bg-[#C0392B] transition-colors duration-300 flex-shrink-0">
+          <button
+            type="submit"
+            className="w-10 sm:w-12 h-10 sm:h-12 flex items-center justify-center rounded-full bg-[#E74C3C] hover:bg-[#C0392B] transition-colors duration-300 flex-shrink-0"
+          >
             <IoMdSend size={20} className="text-white" />
           </button>
         </form>
