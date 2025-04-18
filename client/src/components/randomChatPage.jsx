@@ -196,29 +196,30 @@ const RandomChatPage = () => {
   return (
     <div className="h-screen flex flex-col text-white bg-[url('../assets/bg.jpg')] bg-cover bg-center bg-no-repeat relative overflow-hidden">
       {/* HEADER */}
-      <header className="sticky top-0 h-16 bg-[#1A1A1A] flex justify-between items-center px-4 shadow-md">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="lg:hidden text-white hover:text-[#E74C3C] transition">
-            <FaAngleLeft size={25} />
-          </Link>
-          <Avatar width={50} height={50} imageUrl={userdata?.profile_pic} />
-          <div className="flex items-center">
-            <h3 className="font-semibold text-lg">{userdata?.name}</h3>
-            <div className="ml-2 flex items-center justify-center w-6 h-6 bg-green-600 rounded-full text-sm font-semibold">
-              {onlineUsersCount}
-            </div>
-            <span className="text-green-400 ml-1 text-sm">Online</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <button className="text-gray-300 hover:bg-white/20 rounded-full p-2" onClick={handleOpenFriendDialog}>
-            <FaUserPlus size={20} />
-          </button>
-          <button onClick={handleClearChat} className="text-gray-300 hover:text-red-500 transition">
-            <FaTrash size={20} />
-          </button>
-        </div>
-      </header>
+      <header className="fixed top-0 left-0 right-0 h-16 bg-[#1A1A1A] flex justify-between items-center px-4 shadow-md z-10">
+  <div className="flex items-center gap-4">
+    <Link to="/" className="lg:hidden text-white hover:text-[#E74C3C] transition">
+      <FaAngleLeft size={25} />
+    </Link>
+    <Avatar width={50} height={50} imageUrl={userdata?.profile_pic} />
+    <div className="flex items-center">
+      <h3 className="font-semibold text-lg">{userdata?.name}</h3>
+      <div className="ml-2 flex items-center justify-center w-6 h-6 bg-green-600 rounded-full text-sm font-semibold">
+        {onlineUsersCount}
+      </div>
+      <span className="text-green-400 ml-1 text-sm">Online</span>
+    </div>
+  </div>
+  <div className="flex items-center gap-4">
+    <button className="text-gray-300 hover:bg-white/20 rounded-full p-2" onClick={handleOpenFriendDialog}>
+      <FaUserPlus size={20} />
+    </button>
+    <button onClick={handleClearChat} className="text-gray-300 hover:text-red-500 transition">
+      <FaTrash size={20} />
+    </button>
+  </div>
+</header>
+
 
       {/* Friend Request Dialog */}
       {showFriendDialog && (
