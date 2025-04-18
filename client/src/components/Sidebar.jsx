@@ -142,8 +142,29 @@ const Sidebar = () => {
   if (!userdata) return <div className="text-white p-4">Loading...</div>;
 
   return (
+   
+
     <div className="w-full h-full grid grid-cols-1 md:grid-cols-[70px,1fr] bg-[#161616] text-white">
       {/* Desktop Sidebar */}
+          {/* Mobile/Tablet Top Header */}
+          <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-[#161616] h-14 flex items-center justify-between px-4 shadow-md">
+  <h1 className="text-2xl font-bold text-red-400">Qchat</h1>
+  <button
+    onClick={() => setIsEditUserOpen(true)}
+    title={userdata?.name}
+    className="w-9 h-9 rounded-full border-2 border-blue-500 overflow-hidden"
+  >
+    <Avatar
+      imageUrl={userdata?.profile_pic || "/default.png"}
+      name={userdata?.name}
+      width={36}
+      height={36}
+      className="rounded-full"
+    />
+  </button>
+</div>
+
+
       <div className="hidden md:flex flex-col justify-between items-center py-5 w-16 bg-black/30 text-gray-300 rounded-3xl backdrop-blur-2xl shadow-lg shadow-black/40">
         <div className="space-y-4">
           <button onClick={() => setShowFriends(false)} className={`w-12 h-12 flex justify-center items-center rounded-full transition-all duration-300 ${!showFriends ? "bg-blue-600" : "shadow-md shadow-blue-500/50"} hover:scale-110 hover:bg-blue-700`} title="Chat">
@@ -278,6 +299,14 @@ const Sidebar = () => {
 >
   <FaRandom size={26} />
 </button>
+
+
+
+
+
+
+
+
       {isEditUserOpen && <EditUserDetails onClose={() => setIsEditUserOpen(false)} />}
       {isSearchUserOpen && <SearchUser onClose={() => setIsSearchUserOpen(false)} />}
     </div>
