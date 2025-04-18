@@ -20,8 +20,6 @@ const RandomChatPage = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [popupMessage, setPopupMessage] = useState("");
   const [popupVisible, setPopupVisible] = useState(false);
-
-  // Friend request management
   const [showFriendDialog, setShowFriendDialog] = useState(false);
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [friendStatus, setFriendStatus] = useState("");
@@ -30,13 +28,18 @@ const RandomChatPage = () => {
 
   const messageContainerRef = useRef(null);
 
+  // Scroll lock when modal is open
+  useEffect(() => {
+    document.body.style.overflow = showFriendDialog ? 'hidden' : 'auto';
+  }, [showFriendDialog]);
+
   useEffect(() => {
     if (randomUser?.name) {
       alert(`You are connected with ${randomUser.name}`);
     }
 
     if (socket) {
-      socket.on("new-message", (chatRoomId, newMessages) => {
+      socket.on("new-message", (roomId, newMessages) => {
         if (newMessages.some(msg => msg.receiverId === userdata?._id || msg.senderId === userdata?._id)) {
           setAllMessages(newMessages);
         }
@@ -49,12 +52,11 @@ const RandomChatPage = () => {
       });
 
       socket.on("chat-started", (roomId, partner) => {
-        setChatRoomId(roomId); // <-- store the actual room ID from backend
+        setChatRoomId(roomId);
         setRandomUser(partner);
         setChatStarted(true);
         setRecipientStatus("Online");
       });
-      
 
       socket.on("chat-ended", () => {
         const leftUser = randomUser?.username;
@@ -66,7 +68,6 @@ const RandomChatPage = () => {
         setPopupVisible(true);
         setTimeout(() => setPopupVisible(false), 3000);
       });
-      
 
       socket.on("typing", setIsTyping);
 
@@ -106,15 +107,14 @@ const RandomChatPage = () => {
 
   const handleEndChat = () => {
     setChatStarted(false);
-    setChatRoomId(null); // clear the room
+    setChatRoomId(null);
     socket?.emit("end-chat", userdata._id);
   };
-  
 
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!chatStarted || !chatRoomId || (!message.text && !message.imageUrl)) return;
-  
+
     const newMessage = {
       senderId: userdata?._id,
       receiverId: randomUser.userId,
@@ -122,12 +122,11 @@ const RandomChatPage = () => {
       imageUrl: message.imageUrl,
       createdAt: new Date().toISOString(),
     };
-  
-    socket.emit("send-message", chatRoomId, newMessage); // use the room from backend
+
+    socket.emit("send-message", chatRoomId, newMessage);
     setAllMessages(prev => [...prev, newMessage]);
     setMessage({ text: "", imageUrl: "" });
   };
-  
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -194,9 +193,9 @@ const RandomChatPage = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col text-white bg-[url('../assets/bg.jpg')] bg-cover bg-center bg-no-repeat relative overflow-hidden">
+    <div className="flex flex-col h-screen text-white bg-[url('../assets/bg.jpg')] bg-cover bg-center bg-no-repeat relative">
       {/* HEADER */}
-      <header className="sticky top-0 h-16 bg-[#1A1A1A] flex justify-between items-center px-4 shadow-md">
+      <header className="fixed top-0 left-0 right-0 z-20 h-16 bg-[#1A1A1A] flex justify-between items-center px-4 shadow-md">
         <div className="flex items-center gap-4">
           <Link to="/" className="lg:hidden text-white hover:text-[#E74C3C] transition">
             <FaAngleLeft size={25} />
@@ -222,7 +221,7 @@ const RandomChatPage = () => {
 
       {/* Friend Request Dialog */}
       {showFriendDialog && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-10">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-30">
           <div className="bg-[#1A1A1A] p-6 rounded-lg text-center w-80">
             <div className="flex justify-center">
               <Avatar width={80} height={80} imageUrl={randomUser?.profile_pic} />
@@ -255,14 +254,14 @@ const RandomChatPage = () => {
 
       {/* Pop-up Message */}
       {popupVisible && (
-        <div className="popup-message animate-popup text-white bg-[#333] p-4 text-center fixed top-16 left-1/2 transform -translate-x-1/2 rounded-md shadow-lg z-20">
+        <div className="popup-message animate-popup text-white bg-[#333] p-4 text-center fixed top-20 left-1/2 transform -translate-x-1/2 rounded-md shadow-lg z-20">
           {popupMessage}
         </div>
       )}
 
-      {/* Chat Header */}
+      {/* Connection Message */}
       {randomUser && chatStarted && (
-        <div className="flex flex-col items-center justify-center p-4 text-center">
+        <div className="mt-16 flex flex-col items-center justify-center p-4 text-center">
           <div className="relative w-20 h-20">
             <Avatar width={80} height={80} imageUrl={randomUser?.profile_pic} />
             {recipientStatus === "Online" && (
@@ -274,7 +273,10 @@ const RandomChatPage = () => {
       )}
 
       {/* Chat Messages */}
-      <section className="flex-1 overflow-y-scroll px-4 py-2" ref={messageContainerRef}>
+      <section
+        ref={messageContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-2 mt-16 mb-20"
+      >
         <div className="flex flex-col gap-2">
           {allMessages.map((msg, index) => (
             <div key={msg._id || index} className={`p-3 rounded-3xl shadow-lg ${msg.senderId === userdata?._id ? "ml-auto bg-[#0078FF]" : "mr-auto bg-[#1A1A1A]"} max-w-[70%]`}>
@@ -287,53 +289,47 @@ const RandomChatPage = () => {
       </section>
 
       {/* Chat Input */}
-      <section className="h-20  px-2 py-2 flex items-center gap-2 shadow-inner">
-  <div className="flex-shrink-0">
-    <button
-      onClick={chatStarted ? handleEndChat : handleStartChat}
-      className="min-w-[100px] h-12 px-4 flex items-center justify-center rounded-full bg-[#E74C3C] text-white font-semibold hover:bg-[#C0392B] transition"
-    >
-      {isSearching ? (
-        <div className="loader border-t-2 border-white border-solid rounded-full w-5 h-5 animate-spin" />
-      ) : (
-        chatStarted ? "End Chat" : "Start Chat"
-      )}
-    </button>
-  </div>
+      <section className="fixed bottom-0 left-0 right-0 h-20 bg-[#1A1A1A] px-2 py-2 flex items-center gap-2 shadow-inner z-10">
+        <button
+          onClick={chatStarted ? handleEndChat : handleStartChat}
+          className="min-w-[100px] h-12 px-4 flex items-center justify-center rounded-full bg-[#E74C3C] text-white font-semibold hover:bg-[#C0392B] transition"
+        >
+          {isSearching ? (
+            <div className="loader border-t-2 border-white border-solid rounded-full w-5 h-5 animate-spin" />
+          ) : (
+            chatStarted ? "End Chat" : "Start Chat"
+          )}
+        </button>
 
-  <form
-    className="flex items-center gap-2 sm:w-full w-full relative flex-wrap"
-    onSubmit={(e) => handleSendMessage(e)} // Prevent form default behavior and manually call handleSendMessage
-  >
-    <label className="absolute left-3 top-1/2 transform -translate-y-1/2 cursor-pointer">
-      <FaPlus size={18} className="text-white" />
-      <input type="file" className="hidden" onChange={handleFileUpload} />
-    </label>
+        <form
+          className="flex items-center gap-2 flex-1 relative"
+          onSubmit={handleSendMessage}
+        >
+          <label className="absolute left-3 top-1/2 transform -translate-y-1/2 cursor-pointer">
+            <FaPlus size={18} className="text-white" />
+            <input type="file" className="hidden" onChange={handleFileUpload} />
+          </label>
 
-    <input
-      type="text"
-      value={message.text}
-      onChange={(e) => {
-        setMessage({ ...message, text: e.target.value });
-        socket.emit("typing", e.target.value.length > 0);
-      }}
-      placeholder="Type a message..."
-      className="flex-1 p-3 pl-10 rounded-full bg-[#2A2A2A] text-white outline-none border border-gray-600 sm:w-full w-[calc(100%-3rem)]" // Full width on small screens
-    />
+          <input
+            type="text"
+            value={message.text}
+            onChange={(e) => {
+              setMessage({ ...message, text: e.target.value });
+              socket.emit("typing", e.target.value.length > 0);
+            }}
+            placeholder="Type a message..."
+            className="w-full p-3 pl-10 rounded-full bg-[#2A2A2A] text-white outline-none border border-gray-600"
+          />
 
-    <button
-      type="submit"
-      className={`w-12 h-12 flex items-center justify-center rounded-full ${message.text || message.imageUrl ? 'bg-[#E74C3C] hover:bg-[#C0392B]' : 'bg-gray-600 cursor-not-allowed'}`}  // Disable button if message is empty
-      disabled={!message.text && !message.imageUrl}  // Disable if both message and image are empty
-    >
-      <IoMdSend size={20} className="text-white" />
-    </button>
-  </form>
-</section>
-
-
-
-
+          <button
+            type="submit"
+            className={`w-12 h-12 flex items-center justify-center rounded-full ${message.text || message.imageUrl ? 'bg-[#E74C3C] hover:bg-[#C0392B]' : 'bg-gray-600 cursor-not-allowed'}`}
+            disabled={!message.text && !message.imageUrl}
+          >
+            <IoMdSend size={20} className="text-white" />
+          </button>
+        </form>
+      </section>
     </div>
   );
 };
