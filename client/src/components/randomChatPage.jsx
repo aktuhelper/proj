@@ -274,20 +274,21 @@ const RandomChatPage = () => {
       )}
 
       {/* Chat Messages */}
-      <section className="flex-1 overflow-y-scroll px-4 py-2" ref={messageContainerRef}>
-        <div className="flex flex-col gap-2">
-          {allMessages.map((msg, index) => (
-            <div key={msg._id || index} className={`p-3 rounded-3xl shadow-lg ${msg.senderId === userdata?._id ? "ml-auto bg-[#0078FF]" : "mr-auto bg-[#1A1A1A]"} max-w-[70%]`}>
-              {msg.imageUrl && <img src={msg.imageUrl} alt="msg" className="max-w-full max-h-80 rounded-lg mb-2" />}
-              <p className="text-sm break-words">{msg.text}</p>
-              <p className="text-xs text-gray-100 text-right mt-1">{moment(msg.createdAt).format('hh:mm A')}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <section className="flex-1 overflow-y-auto px-4 py-2" ref={messageContainerRef} style={{height: 'calc(100vh - 70px)'}}>
+  <div className="flex flex-col gap-2">
+    {allMessages.map((msg, index) => (
+      <div key={msg._id || index} className={`p-3 rounded-3xl shadow-lg ${msg.senderId === userdata?._id ? "ml-auto bg-[#0078FF]" : "mr-auto bg-[#1A1A1A]"} max-w-[70%]`}>
+        {msg.imageUrl && <img src={msg.imageUrl} alt="msg" className="max-w-full max-h-80 rounded-lg mb-2" />}
+        <p className="text-sm break-words">{msg.text}</p>
+        <p className="text-xs text-gray-100 text-right mt-1">{moment(msg.createdAt).format('hh:mm A')}</p>
+      </div>
+    ))}
+  </div>
+</section>
 
       {/* Chat Input */}
-      <section className="h-20  px-2 py-2 flex items-center gap-2 shadow-inner">
+      <section className="fixed bottom-0 left-0 right-0 bg-[#1A1A1A] px-2 py-2 flex items-center gap-2 shadow-inner z-10">
+
   <div className="flex-shrink-0">
     <button
       onClick={chatStarted ? handleEndChat : handleStartChat}
@@ -330,9 +331,6 @@ const RandomChatPage = () => {
     </button>
   </form>
 </section>
-
-
-
 
     </div>
   );
