@@ -26,6 +26,7 @@ const RandomChatPage = () => {
   const [friendRequestSent, setFriendRequestSent] = useState(false);
   const [friendStatus, setFriendStatus] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [chatRoomId, setChatRoomId] = useState(null);
 
   const messageContainerRef = useRef(null);
 
@@ -47,14 +48,17 @@ const RandomChatPage = () => {
         }
       });
 
-      socket.on("chat-started", (chatRoomId, partner) => {
+      socket.on("chat-started", (roomId, partner) => {
+        setChatRoomId(roomId); // <-- store the actual room ID from backend
         setRandomUser(partner);
         setChatStarted(true);
         setRecipientStatus("Online");
       });
+      
 
       socket.on("chat-ended", () => {
         const leftUser = randomUser?.username;
+        setChatRoomId(null);
         setChatStarted(false);
         setRecipientStatus("Offline");
         setRandomUser(null);
@@ -62,6 +66,7 @@ const RandomChatPage = () => {
         setPopupVisible(true);
         setTimeout(() => setPopupVisible(false), 3000);
       });
+      
 
       socket.on("typing", setIsTyping);
 
@@ -101,13 +106,15 @@ const RandomChatPage = () => {
 
   const handleEndChat = () => {
     setChatStarted(false);
+    setChatRoomId(null); // clear the room
     socket?.emit("end-chat", userdata._id);
   };
+  
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!chatStarted || (!message.text && !message.imageUrl)) return;
-
+    if (!chatStarted || !chatRoomId || (!message.text && !message.imageUrl)) return;
+  
     const newMessage = {
       senderId: userdata?._id,
       receiverId: randomUser.userId,
@@ -115,12 +122,12 @@ const RandomChatPage = () => {
       imageUrl: message.imageUrl,
       createdAt: new Date().toISOString(),
     };
-
-    const chatRoomId = [userdata._id, randomUser.userId].sort().join('-');
-    socket.emit("send-message", chatRoomId, newMessage);
+  
+    socket.emit("send-message", chatRoomId, newMessage); // use the room from backend
     setAllMessages(prev => [...prev, newMessage]);
     setMessage({ text: "", imageUrl: "" });
   };
+  
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
