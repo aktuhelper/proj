@@ -295,6 +295,12 @@ const RandomChatPage = () => {
             )}
           </div>
           <p className="text-md mt-2">You are connected with {randomUser?.username}, say hi! 👋</p>
+          <button
+      onClick={handleOpenFriendDialog}
+      className="mt-4 px-6 py-2 bg-white text-black font-semibold rounded-full shadow hover:bg-gray-200 transition"
+    >
+      Add Friend
+    </button>
         </div>
       )}
   {/* Chat Messages */}
